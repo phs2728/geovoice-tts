@@ -78,6 +78,7 @@
                             <label for="select-engine">TTS 엔진</label>
                             <select id="select-engine">
                                 <option value="gemini" selected>Google Gemini AI Audio (멀티모달)</option>
+                                <option value="mms">Meta MMS-TTS (오픈소스 무료)</option>
                                 <option value="elevenlabs">ElevenLabs Neural (초고음질)</option>
                                 <option value="azure">Microsoft Azure Neural</option>
                                 <option value="system">로컬 시스템 목소리 (Web Speech API)</option>
@@ -235,6 +236,12 @@
                         <label for="input-azure-region">서비스 지역 (Region)</label>
                         <input type="text" id="input-azure-region" placeholder="예: eastus, koreacentral">
                     </div>
+                </div>
+
+                <!-- Meta MMS-TTS Info -->
+                <div class="settings-section">
+                    <h3>Meta MMS-TTS 설정</h3>
+                    <p class="input-hint" style="margin-top: 0;">로컬 PC의 Python 환경을 사용하여 완전 무료로 오프라인 구동되는 엔진입니다. 첫 실행 시 조지아어 모델(약 130MB)을 자동으로 다운로드하여 로드합니다.</p>
                 </div>
             </div>
             <div class="modal-footer">

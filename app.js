@@ -292,6 +292,14 @@ const ENGINES = {
             { id: 'Fenrir', name: 'Fenrir (남성 - 깊은 톤)' }
         ]
     },
+    'mms': {
+        name: 'Meta MMS-TTS',
+        badge: 'Meta MMS-TTS 준비됨',
+        badgeClass: 'green',
+        voices: [
+            { id: 'kat-male', name: 'MMS 조지아어 남성 (오프라인)' }
+        ]
+    },
     'azure': {
         name: 'Microsoft Azure Neural',
         badge: 'Azure 연결됨',
@@ -327,6 +335,10 @@ function updateEngineStatusBadge() {
         
         if (state.currentEngine === 'system') {
             text.textContent = '로컬 시스템 엔진';
+        } else if (state.currentEngine === 'mms') {
+            text.textContent = isConfigured ? 'Meta MMS-TTS 준비됨' : 'MMS 패키지 미설치 (서버)';
+            dot.className = `status-dot ${isConfigured ? 'green' : 'red'}`;
+            badge.className = `status-badge ${isConfigured ? 'green' : 'red'}`;
         } else {
             text.textContent = isConfigured ? `${config.name.split(' ')[0]} (.env 활성)` : `${config.name.split(' ')[0]} (.env 키 없음)`;
             dot.className = `status-dot ${isConfigured ? 'green' : 'yellow'}`;
@@ -344,6 +356,10 @@ function updateEngineStatusBadge() {
             text.textContent = state.apiKeys.google ? 'Gemini 활성' : 'Gemini 키 필요';
             dot.className = `status-dot ${state.apiKeys.google ? 'green' : 'yellow'}`;
             badge.className = `status-badge ${state.apiKeys.google ? 'purple' : 'yellow'}`;
+        } else if (state.currentEngine === 'mms') {
+            text.textContent = 'MMS는 로컬 서버 전용';
+            dot.className = `status-dot red`;
+            badge.className = `status-badge red`;
         } else if (state.currentEngine === 'azure') {
             text.textContent = state.apiKeys.azure ? 'Azure 활성' : 'Azure API 키 필요';
             dot.className = `status-dot ${state.apiKeys.azure ? 'green' : 'yellow'}`;
@@ -878,6 +894,8 @@ async function speakText(text) {
     try {
         if (state.currentEngine === 'gemini') {
             await playGeminiTTS(text, voiceId, speed, pitch);
+        } else if (state.currentEngine === 'mms') {
+            await playMmsTTS(text, speed);
         } else if (state.currentEngine === 'elevenlabs') {
             await playElevenLabsTTS(text, voiceId, speed);
         } else if (state.currentEngine === 'azure') {
@@ -1125,6 +1143,43 @@ function writeStringHelper(view, offset, string) {
     for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
     }
+}
+
+// 3.8. Meta MMS-TTS (Offline Free Open Source)
+async function playMmsTTS(text, speed) {
+    if (!state.isServerActive) {
+        throw new Error("Meta MMS-TTS 엔진은 로컬 Express 서버가 구동 중일 때만 사용할 수 있습니다. 서버를 실행해 주세요.");
+    }
+    
+    if (!state.serverConfig.mms) {
+        throw new Error("로컬 PC에 'sherpa-onnx' 라이브러리가 설치되어 있지 않습니다. 터미널에서 'pip install sherpa-onnx'를 먼저 실행해 주세요.");
+    }
+
+    audioStatus.textContent = "음성 합성 중 (최초 실행 시 모델 다운로드로 수분 소요)...";
+
+    const response = await fetch(`${getServerUrl()}/api/tts/mms`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text, speed })
+    });
+
+    if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        const errMsg = errJson.error || `HTTP 에러 ${response.status}`;
+        throw new Error(errMsg);
+    }
+
+    const blob = await response.blob();
+    cleanAudioUrls();
+
+    state.audioBlob = blob;
+    state.audioUrl = URL.createObjectURL(blob);
+
+    audioPlayer.src = state.audioUrl;
+    audioPlayer.playbackRate = 1.0; // Speed is processed python-side
+    await audioPlayer.play();
 }
 
 // 4. Microsoft Azure Neural TTS

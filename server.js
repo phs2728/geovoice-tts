@@ -9,6 +9,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+let isMmsInstalled = false;
+
+// Check if Python and sherpa-onnx are available
+function checkMmsStatus() {
+    const { exec } = require('child_process');
+    exec('python -c "import sherpa_onnx"', (error, stdout, stderr) => {
+        if (!error) {
+            isMmsInstalled = true;
+            console.log("==================================================");
+            console.log("  Meta MMS-TTS (sherpa-onnx) is available locally! ");
+            console.log("==================================================");
+        } else {
+            isMmsInstalled = false;
+            console.log("==================================================");
+            console.log("  Meta MMS-TTS (sherpa-onnx) is NOT available.    ");
+            console.log("  Run 'pip install sherpa-onnx' to enable it.     ");
+            console.log("==================================================");
+        }
+    });
+}
+checkMmsStatus();
+
 // Enable CORS and JSON body parser
 app.use(cors());
 app.use(express.json());
@@ -21,7 +43,8 @@ app.get('/api/config', (req, res) => {
     res.json({
         elevenlabs: !!process.env.ELEVENLABS_API_KEY,
         azure: !!process.env.AZURE_API_KEY,
-        gemini: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)
+        gemini: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+        mms: isMmsInstalled
     });
 });
 
@@ -191,6 +214,68 @@ function convertToWav(audioData, mimeType) {
 
     return Buffer.concat([header, audioData]);
 }
+
+// Proxy route for Meta MMS-TTS (Offline Free Open Source)
+app.post('/api/tts/mms', async (req, res) => {
+    try {
+        const { text, speed } = req.body;
+        
+        if (!text) {
+            return res.status(400).json({ error: '발음할 조지아어 텍스트를 입력해 주세요.' });
+        }
+
+        const outFileName = `mms_output_${Date.now()}.wav`;
+        const outFilePath = path.join(__dirname, outFileName);
+
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python', [
+            'tts_mms.py',
+            '--text', text,
+            '--output', outFilePath,
+            '--speed', speed || 1.0
+        ]);
+
+        let stdoutData = "";
+        let stderrData = "";
+
+        pythonProcess.stdout.on('data', (data) => {
+            stdoutData += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            stderrData += data.toString();
+        });
+
+        pythonProcess.on('close', async (code) => {
+            if (code !== 0) {
+                console.error(`MMS Python process exited with code ${code}`, stderrData);
+                let userFriendlyError = "Meta MMS-TTS 음성 합성 중 에러가 발생했습니다.";
+                if (stderrData.includes("ModuleNotFoundError")) {
+                    userFriendlyError = "로컬 파이썬 환경에 필요한 패키지(sherpa-onnx)가 설치되어 있지 않습니다.";
+                }
+                return res.status(500).json({ error: userFriendlyError, details: stderrData });
+            }
+
+            const fs = require('fs');
+            if (fs.existsSync(outFilePath)) {
+                const buffer = fs.readFileSync(outFilePath);
+                res.set('Content-Type', 'audio/wav');
+                res.send(buffer);
+
+                // Clean up temp file
+                fs.unlink(outFilePath, (err) => {
+                    if (err) console.error("Temp file cleanup failed:", err);
+                });
+            } else {
+                res.status(500).json({ error: "음성 파일이 생성되었으나 파일을 읽을 수 없습니다.", details: stdoutData });
+            }
+        });
+
+    } catch (err) {
+        console.error("MMS Proxy Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // Proxy route for Microsoft Azure TTS
 app.post('/api/tts/azure', async (req, res) => {
