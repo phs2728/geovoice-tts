@@ -902,12 +902,17 @@ async function playElevenLabsTTS(text, voiceId, speed) {
     
     if (state.isServerActive) {
         // Use local proxy server (.env key)
+        const customKey = state.apiKeys.elevenlabs === DEFAULT_ELEVENLABS_KEY ? "" : state.apiKeys.elevenlabs;
         response = await fetch(`${getServerUrl()}/api/tts/elevenlabs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ text, voiceId })
+            body: JSON.stringify({ 
+                text, 
+                voiceId,
+                userApiKey: customKey
+            })
         });
     } else {
         // Use client-side direct API
@@ -961,7 +966,11 @@ async function playGeminiTTS(text, voiceId, speed, pitch) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ text, voiceId })
+            body: JSON.stringify({ 
+                text, 
+                voiceId,
+                userApiKey: state.apiKeys.google
+            })
         });
     } else {
         // Use client-side direct API
@@ -1129,7 +1138,14 @@ async function playAzureTTS(text, voiceId, speed, pitch) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ text, voiceId, speed, pitch })
+            body: JSON.stringify({ 
+                text, 
+                voiceId, 
+                speed, 
+                pitch,
+                userApiKey: state.apiKeys.azure,
+                userRegion: state.apiKeys.azureRegion
+            })
         });
     } else {
         // Use client-side direct API

@@ -28,11 +28,11 @@ app.get('/api/config', (req, res) => {
 // Proxy route for ElevenLabs TTS
 app.post('/api/tts/elevenlabs', async (req, res) => {
     try {
-        const { text, voiceId } = req.body;
-        const apiKey = process.env.ELEVENLABS_API_KEY;
+        const { text, voiceId, userApiKey } = req.body;
+        const apiKey = userApiKey || process.env.ELEVENLABS_API_KEY;
 
         if (!apiKey) {
-            return res.status(400).json({ error: '서버 .env 파일에 ElevenLabs API Key가 설정되지 않았습니다.' });
+            return res.status(400).json({ error: 'ElevenLabs API Key가 제공되지 않았습니다. 설정 모달에서 API Key를 입력하세요.' });
         }
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -71,11 +71,11 @@ app.post('/api/tts/elevenlabs', async (req, res) => {
 // Proxy route for Google Gemini TTS
 app.post('/api/tts/gemini', async (req, res) => {
     try {
-        const { text, voiceId } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+        const { text, voiceId, userApiKey } = req.body;
+        const apiKey = userApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
         if (!apiKey) {
-            return res.status(400).json({ error: '서버 .env 파일에 Gemini API Key가 설정되지 않았습니다.' });
+            return res.status(400).json({ error: 'Gemini API Key가 제공되지 않았습니다. 설정 모달에서 API Key를 입력하세요.' });
         }
 
         const model = "gemini-3.1-flash-tts-preview";
@@ -195,12 +195,12 @@ function convertToWav(audioData, mimeType) {
 // Proxy route for Microsoft Azure TTS
 app.post('/api/tts/azure', async (req, res) => {
     try {
-        const { text, voiceId, speed, pitch } = req.body;
-        const apiKey = process.env.AZURE_API_KEY;
-        const region = process.env.AZURE_REGION || 'eastus';
+        const { text, voiceId, speed, pitch, userApiKey, userRegion } = req.body;
+        const apiKey = userApiKey || process.env.AZURE_API_KEY;
+        const region = userRegion || process.env.AZURE_REGION || 'eastus';
 
         if (!apiKey) {
-            return res.status(400).json({ error: '서버 .env 파일에 Azure API Key가 설정되지 않았습니다.' });
+            return res.status(400).json({ error: 'Azure API Key가 제공되지 않았습니다. 설정 모달에서 API Key를 입력하세요.' });
         }
 
         const pctRate = `${Math.round((speed - 1.0) * 100)}%`;
