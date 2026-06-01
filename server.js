@@ -161,10 +161,15 @@ app.post('/api/tts/azure', async (req, res) => {
     }
 });
 
-// Start the server
-app.listen(PORT, () => {
-    console.log(`==================================================`);
-    console.log(`  GeoVoice TTS Server is running on port ${PORT}`);
-    console.log(`  Open http://localhost:${PORT} in your browser`);
-    console.log(`==================================================`);
-});
+// Export the app for serverless platforms like Vercel
+module.exports = app;
+
+// Start the server if run directly (local development)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`==================================================`);
+        console.log(`  GeoVoice TTS Server is running on port ${PORT}`);
+        console.log(`  Open http://localhost:${PORT} in your browser`);
+        console.log(`==================================================`);
+    });
+}

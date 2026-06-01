@@ -353,8 +353,12 @@ function updateVoiceList() {
     const engine = state.currentEngine;
     
     if (engine === 'system') {
-        // Find system voices that are Georgian (ka)
-        const kaVoices = systemVoices.filter(v => v.lang.startsWith('ka') || v.lang.startsWith('kat'));
+        // Find system voices that are Georgian (ka) or are RHVoice Natia fallback
+        const kaVoices = systemVoices.filter(v => {
+            const lang = v.lang.toLowerCase();
+            const name = v.name.toLowerCase();
+            return lang.startsWith('ka') || lang.startsWith('kat') || name.includes('natia') || name.includes('rhvoice');
+        });
         if (kaVoices.length > 0) {
             kaVoices.forEach(voice => {
                 const opt = document.createElement('option');
