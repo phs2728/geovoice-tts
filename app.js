@@ -1050,7 +1050,10 @@ async function playGoogleCloudTTS(text, voiceId, speed, pitch) {
 
     if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || errJson.error?.message || `HTTP 에러 ${response.status}`);
+        const errMsg = (errJson.error && typeof errJson.error === 'object')
+            ? errJson.error.message
+            : (errJson.error || `HTTP 에러 ${response.status}`);
+        throw new Error(errMsg);
     }
 
     let audioBlob;
