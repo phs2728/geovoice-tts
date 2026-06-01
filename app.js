@@ -288,6 +288,18 @@ const ENGINES = {
             { id: 'pNInz6obpgq5paNa6fD7', name: 'Adam (남성 - 나레이션)' }
         ]
     },
+    'gemini': {
+        name: 'Google Gemini AI Audio',
+        badge: 'Gemini 연결됨',
+        badgeClass: 'purple',
+        voices: [
+            { id: 'Aoede', name: 'Aoede (여성 - 추천, 부드러움)' },
+            { id: 'Kore', name: 'Kore (여성 - 차분함)' },
+            { id: 'Puck', name: 'Puck (남성 - 쾌활함)' },
+            { id: 'Charon', name: 'Charon (남성 - 신뢰감)' },
+            { id: 'Fenrir', name: 'Fenrir (남성 - 깊은 톤)' }
+        ]
+    },
     'google-cloud': {
         name: 'Google Cloud TTS',
         badge: 'Google Cloud 연결됨',
@@ -317,31 +329,50 @@ function updateEngineStatusBadge() {
     const badge = document.getElementById('engine-status');
     const dot = badge.querySelector('.status-dot');
     const text = badge.querySelector('.status-text');
-
-    const config = ENGINES[state.currentEngine];
-    dot.className = `status-dot ${config.badgeClass}`;
     
+    const config = ENGINES[state.currentEngine];
+    if (!config) return;
+    
+    // Default class reset
+    dot.className = `status-dot ${config.badgeClass || 'green'}`;
+    badge.className = `status-badge ${config.badgeClass || 'green'}`;
+
     if (state.isServerActive) {
-        // Server active mode status (.env configuration)
-        const isConfigured = state.serverConfig[state.currentEngine === 'google-cloud' ? 'google' : state.currentEngine];
+        let engineKey = state.currentEngine;
+        if (state.currentEngine === 'google-cloud') engineKey = 'google';
+        const isConfigured = state.serverConfig[engineKey];
+        
         if (state.currentEngine === 'free-google') {
             text.textContent = '무료 기본 (서버 모드)';
         } else if (state.currentEngine === 'system') {
             text.textContent = '로컬 시스템 엔진';
         } else {
             text.textContent = isConfigured ? `${config.name.split(' ')[0]} (.env 활성)` : `${config.name.split(' ')[0]} (.env 키 없음)`;
-            if (!isConfigured) dot.className = `status-dot yellow`;
+            dot.className = `status-dot ${isConfigured ? 'green' : 'yellow'}`;
+            badge.className = `status-badge ${isConfigured ? config.badgeClass : 'yellow'}`;
         }
     } else {
         // Direct browser mode status (local settings)
-        if (state.currentEngine === 'elevenlabs') {
+        if (state.currentEngine === 'free-google') {
+            text.textContent = '무료 기본 엔진';
+        } else if (state.currentEngine === 'system') {
+            text.textContent = '로컬 SAPI5 엔진';
+        } else if (state.currentEngine === 'elevenlabs') {
             text.textContent = state.apiKeys.elevenlabs === DEFAULT_ELEVENLABS_KEY ? 'ElevenLabs (기본 키)' : 'ElevenLabs (사용자 키)';
+            dot.className = `status-dot green`;
+            badge.className = `status-badge blue`;
         } else if (state.currentEngine === 'google-cloud') {
             text.textContent = state.apiKeys.google ? 'Google Cloud 활성' : '구글 API 키 필요';
-            if (!state.apiKeys.google) dot.className = `status-dot yellow`;
+            dot.className = `status-dot ${state.apiKeys.google ? 'green' : 'yellow'}`;
+            badge.className = `status-badge ${state.apiKeys.google ? 'blue' : 'yellow'}`;
+        } else if (state.currentEngine === 'gemini') {
+            text.textContent = state.apiKeys.google ? 'Gemini 활성' : '구글 API 키 필요';
+            dot.className = `status-dot ${state.apiKeys.google ? 'green' : 'yellow'}`;
+            badge.className = `status-badge ${state.apiKeys.google ? 'purple' : 'yellow'}`;
         } else if (state.currentEngine === 'azure') {
             text.textContent = state.apiKeys.azure ? 'Azure 활성' : 'Azure API 키 필요';
-            if (!state.apiKeys.azure) dot.className = `status-dot yellow`;
+            dot.className = `status-dot ${state.apiKeys.azure ? 'green' : 'yellow'}`;
+            badge.className = `status-badge ${state.apiKeys.azure ? 'blue' : 'yellow'}`;
         } else {
             text.textContent = config.badge;
         }
@@ -880,6 +911,8 @@ async function speakText(text) {
             await playElevenLabsTTS(text, voiceId, speed);
         } else if (state.currentEngine === 'google-cloud') {
             await playGoogleCloudTTS(text, voiceId, speed, pitch);
+        } else if (state.currentEngine === 'gemini') {
+            await playGeminiTTS(text, voiceId, speed, pitch);
         } else if (state.currentEngine === 'azure') {
             await playAzureTTS(text, voiceId, speed, pitch);
         } else if (state.currentEngine === 'system') {
@@ -1072,6 +1105,174 @@ async function playGoogleCloudTTS(text, voiceId, speed, pitch) {
     audioPlayer.src = state.audioUrl;
     audioPlayer.playbackRate = 1.0; // Handled API-side
     await audioPlayer.play();
+}
+
+// 3.5. Google Gemini TTS
+async function playGeminiTTS(text, voiceId, speed, pitch) {
+    let response;
+    
+    if (state.isServerActive) {
+        // Use local proxy server (.env key)
+        response = await fetch(`${getServerUrl()}/api/tts/gemini`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text, voiceId })
+        });
+    } else {
+        // Use client-side direct API
+        const apiKey = state.apiKeys.google;
+        if (!apiKey) {
+            throw new Error("Google Cloud & Gemini API Key가 설정되지 않았습니다. 설정 모달에서 입력해 주세요.");
+        }
+
+        const model = "gemini-3.1-flash-tts-preview";
+        const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        
+        const requestBody = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        {
+                            text: `Read the following transcript based on the audio profile and director's note.
+
+# Audio Profile
+A helpful and professional personal assistant.
+
+# Director's note
+Style: Empathetic. Pace: Natural. Accent: Georgian.
+
+## Transcript:
+${text}`
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 1.0,
+                responseModalities: ["audio"],
+                speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: {
+                            voiceName: voiceId
+                        }
+                    }
+                }
+            }
+        };
+
+        response = await fetch(`https://corsproxy.io/?` + encodeURIComponent(targetUrl), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+    }
+
+    if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        const errMsg = (errJson.error && typeof errJson.error === 'object')
+            ? errJson.error.message
+            : (errJson.error || `HTTP 에러 ${response.status}`);
+        throw new Error(errMsg);
+    }
+
+    let audioBlob;
+    if (state.isServerActive) {
+        audioBlob = await response.blob();
+    } else {
+        const json = await response.json();
+        const candidate = json.candidates?.[0];
+        const part = candidate?.content?.parts?.[0];
+
+        if (!part || !part.inlineData) {
+            throw new Error("Gemini API 응답에서 오디오 데이터를 찾을 수 없습니다.");
+        }
+
+        const mimeType = part.inlineData.mimeType;
+        const base64Data = part.inlineData.data;
+        
+        // Convert base64 to raw Uint8Array
+        const rawAudio = base64ToUint8Array(base64Data);
+        
+        // Build WAV file locally
+        audioBlob = clientConvertToWav(rawAudio, mimeType);
+    }
+
+    cleanAudioUrls();
+
+    state.audioBlob = audioBlob;
+    state.audioUrl = URL.createObjectURL(audioBlob);
+    
+    audioPlayer.src = state.audioUrl;
+    audioPlayer.playbackRate = speed;
+    await audioPlayer.play();
+}
+
+function base64ToUint8Array(base64) {
+    const raw = window.atob(base64);
+    const rawLength = raw.length;
+    const array = new Uint8Array(new ArrayBuffer(rawLength));
+    for (let i = 0; i < rawLength; i++) {
+        array[i] = raw.charCodeAt(i);
+    }
+    return array;
+}
+
+function clientConvertToWav(audioData, mimeType) {
+    let bitsPerSample = 16;
+    let rate = 24000;
+
+    const parts = mimeType.split(";");
+    for (let part of parts) {
+        part = part.trim();
+        if (part.toLowerCase().startsWith("rate=")) {
+            const val = parseInt(part.split("=")[1], 10);
+            if (!isNaN(val)) rate = val;
+        } else if (part.startsWith("audio/L")) {
+            const val = parseInt(part.split("L")[1], 10);
+            if (!isNaN(val)) bitsPerSample = val;
+        }
+    }
+
+    const numChannels = 1;
+    const dataSize = audioData.length;
+    const bytesPerSample = bitsPerSample / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = rate * blockAlign;
+    const chunkSize = 36 + dataSize;
+
+    const header = new ArrayBuffer(44);
+    const view = new DataView(header);
+
+    writeStringHelper(view, 0, 'RIFF');
+    view.setUint32(4, chunkSize, true);
+    writeStringHelper(view, 8, 'WAVE');
+    writeStringHelper(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    writeStringHelper(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    const wavBuffer = new Uint8Array(44 + dataSize);
+    wavBuffer.set(new Uint8Array(header), 0);
+    wavBuffer.set(audioData, 44);
+
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+}
+
+function writeStringHelper(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
 }
 
 // 4. Microsoft Azure Neural TTS
