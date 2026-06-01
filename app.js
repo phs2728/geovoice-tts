@@ -118,6 +118,7 @@ const state = {
     // API Keys (load from localStorage, fallback ElevenLabs to default)
     apiKeys: {
         elevenlabs: localStorage.getItem('key_elevenlabs') || DEFAULT_ELEVENLABS_KEY,
+        elevenlabsVoice: localStorage.getItem('key_elevenlabs_voice') || '',
         google: localStorage.getItem('key_google') || '',
         azure: localStorage.getItem('key_azure') || '',
         azureRegion: localStorage.getItem('key_azure_region') || 'eastus'
@@ -252,6 +253,7 @@ const btnCloseSettings = document.getElementById('btn-close-settings');
 const btnCancelSettings = document.getElementById('btn-cancel-settings');
 const btnSaveSettings = document.getElementById('btn-save-settings');
 const inputElevenLabsKey = document.getElementById('input-elevenlabs-key');
+const inputElevenlabsVoice = document.getElementById('input-elevenlabs-voice');
 const inputGoogleKey = document.getElementById('input-google-key');
 const inputAzureKey = document.getElementById('input-azure-key');
 const inputAzureRegion = document.getElementById('input-azure-region');
@@ -374,6 +376,15 @@ function updateVoiceList() {
             opt.textContent = voice.name;
             selectVoice.appendChild(opt);
         });
+
+        // Add custom voice if configured
+        if (engine === 'elevenlabs' && state.apiKeys.elevenlabsVoice) {
+            const opt = document.createElement('option');
+            opt.value = state.apiKeys.elevenlabsVoice;
+            opt.textContent = '👤 사용자 커스텀 조지아어 음성';
+            selectVoice.insertBefore(opt, selectVoice.firstChild);
+            selectVoice.value = state.apiKeys.elevenlabsVoice;
+        }
     }
 }
 
@@ -431,6 +442,7 @@ document.getElementById('btn-copy').addEventListener('click', () => {
 // Settings Modal Toggles
 btnSettings.addEventListener('click', () => {
     inputElevenLabsKey.value = state.apiKeys.elevenlabs;
+    inputElevenlabsVoice.value = state.apiKeys.elevenlabsVoice || '';
     inputGoogleKey.value = state.apiKeys.google;
     inputAzureKey.value = state.apiKeys.azure;
     inputAzureRegion.value = state.apiKeys.azureRegion;
@@ -446,18 +458,21 @@ btnCancelSettings.addEventListener('click', hideSettings);
 
 btnSaveSettings.addEventListener('click', () => {
     state.apiKeys.elevenlabs = inputElevenLabsKey.value.trim() || DEFAULT_ELEVENLABS_KEY;
+    state.apiKeys.elevenlabsVoice = inputElevenlabsVoice.value.trim();
     state.apiKeys.google = inputGoogleKey.value.trim();
     state.apiKeys.azure = inputAzureKey.value.trim();
     state.apiKeys.azureRegion = inputAzureRegion.value.trim() || 'eastus';
 
     // Store in localStorage
     localStorage.setItem('key_elevenlabs', state.apiKeys.elevenlabs);
+    localStorage.setItem('key_elevenlabs_voice', state.apiKeys.elevenlabsVoice);
     localStorage.setItem('key_google', state.apiKeys.google);
     localStorage.setItem('key_azure', state.apiKeys.azure);
     localStorage.setItem('key_azure_region', state.apiKeys.azureRegion);
 
     hideSettings();
     updateEngineStatusBadge();
+    updateVoiceList(); // Update dropdown with new custom voice
 });
 
 // Control sliders labels
