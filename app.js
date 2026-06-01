@@ -1027,7 +1027,7 @@ async function playGoogleCloudTTS(text, voiceId, speed, pitch) {
 
         const semitonePitch = (pitch - 1.0) * 12.0;
 
-        const targetUrl = `https://texttospeech.googleapis.com/v1/texttospeech:synthesize?key=${apiKey}`;
+        const targetUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
         response = await fetch(`https://corsproxy.io/?` + encodeURIComponent(targetUrl), {
             method: 'POST',
             headers: {
