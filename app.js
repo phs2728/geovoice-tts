@@ -393,17 +393,6 @@ state.currentEngine = selectEngine.value;
 updateEngineStatusBadge();
 updateVoiceList();
 
-// Load history from localStorage
-try {
-    const savedHistory = localStorage.getItem('geo_tts_history');
-    if (savedHistory) {
-        state.history = JSON.parse(savedHistory);
-        renderHistory();
-    }
-} catch (e) {
-    console.error("Failed to load history:", e);
-}
-
 // --- Event Handlers ---
 
 // Change Engine
@@ -1232,6 +1221,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     generateKeyboard();
     loadPhrases();
     loadAlphabet();
+    
+    // Load history from localStorage after DOM is fully loaded and initialized
+    try {
+        const savedHistory = localStorage.getItem('geo_tts_history');
+        if (savedHistory) {
+            state.history = JSON.parse(savedHistory);
+        }
+    } catch (e) {
+        console.error("Failed to load history:", e);
+    }
+    
     renderHistory();
     await checkServerStatus();
 });
