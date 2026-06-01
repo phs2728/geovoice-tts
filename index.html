@@ -77,10 +77,8 @@
                         <div class="control-group">
                             <label for="select-engine">TTS 엔진</label>
                             <select id="select-engine">
-                                <option value="free-google" selected>무료 기본 (Google Translate TTS)</option>
-                                <option value="gemini">Google Gemini AI Audio (멀티모달)</option>
+                                <option value="gemini" selected>Google Gemini AI Audio (멀티모달)</option>
                                 <option value="elevenlabs">ElevenLabs Neural (초고음질)</option>
-                                <option value="google-cloud">Google Cloud TTS (신경망)</option>
                                 <option value="azure">Microsoft Azure Neural</option>
                                 <option value="system">로컬 시스템 목소리 (Web Speech API)</option>
                             </select>
@@ -216,13 +214,13 @@
                     </div>
                 </div>
 
-                <!-- Google Cloud & Gemini Settings -->
+                <!-- Google Gemini Settings -->
                 <div class="settings-section">
-                    <h3>Google Cloud & Gemini 설정</h3>
+                    <h3>Google Gemini 설정</h3>
                     <div class="form-group">
-                        <label for="input-google-key">API Key (Google Cloud / Gemini 공유)</label>
-                        <input type="password" id="input-google-key" placeholder="Google API Key 입력">
-                        <span class="input-hint">구글 클라우드 TTS 및 Gemini API에서 공동으로 사용하는 API 키입니다.</span>
+                        <label for="input-google-key">API Key (Gemini API)</label>
+                        <input type="password" id="input-google-key" placeholder="Gemini API Key 입력">
+                        <span class="input-hint">Google AI Studio에서 발급받은 Gemini API 키입니다.</span>
                     </div>
                 </div>
 

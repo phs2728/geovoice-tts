@@ -110,7 +110,7 @@ const state = {
     activeTab: 'tab-phrasebook',
     activeCategory: 'greetings',
     keyboardOpen: false,
-    currentEngine: 'free-google',
+    currentEngine: 'gemini',
     playbackState: 'idle', // 'idle', 'generating', 'playing'
     audioBlob: null,
     audioUrl: null,
@@ -268,14 +268,6 @@ const categoryButtons = document.querySelectorAll('.cat-btn');
 // --- Initialization & Engine Definitions ---
 
 const ENGINES = {
-    'free-google': {
-        name: 'Google Translate TTS',
-        badge: '무료 기본',
-        badgeClass: 'green',
-        voices: [
-            { id: 'ka-female', name: '조지아어 원어민 여성 (기본)' }
-        ]
-    },
     'elevenlabs': {
         name: 'ElevenLabs AI Neural',
         badge: 'ElevenLabs 연결됨',
@@ -298,14 +290,6 @@ const ENGINES = {
             { id: 'Puck', name: 'Puck (남성 - 쾌활함)' },
             { id: 'Charon', name: 'Charon (남성 - 신뢰감)' },
             { id: 'Fenrir', name: 'Fenrir (남성 - 깊은 톤)' }
-        ]
-    },
-    'google-cloud': {
-        name: 'Google Cloud TTS',
-        badge: 'Google Cloud 연결됨',
-        badgeClass: 'blue',
-        voices: [
-            { id: 'ka-GE-Standard-A', name: 'ka-GE-Standard-A (여성)' }
         ]
     },
     'azure': {
@@ -338,13 +322,10 @@ function updateEngineStatusBadge() {
     badge.className = `status-badge ${config.badgeClass || 'green'}`;
 
     if (state.isServerActive) {
-        let engineKey = state.currentEngine;
-        if (state.currentEngine === 'google-cloud') engineKey = 'google';
+        const engineKey = state.currentEngine;
         const isConfigured = state.serverConfig[engineKey];
         
-        if (state.currentEngine === 'free-google') {
-            text.textContent = '무료 기본 (서버 모드)';
-        } else if (state.currentEngine === 'system') {
+        if (state.currentEngine === 'system') {
             text.textContent = '로컬 시스템 엔진';
         } else {
             text.textContent = isConfigured ? `${config.name.split(' ')[0]} (.env 활성)` : `${config.name.split(' ')[0]} (.env 키 없음)`;
@@ -353,20 +334,14 @@ function updateEngineStatusBadge() {
         }
     } else {
         // Direct browser mode status (local settings)
-        if (state.currentEngine === 'free-google') {
-            text.textContent = '무료 기본 엔진';
-        } else if (state.currentEngine === 'system') {
+        if (state.currentEngine === 'system') {
             text.textContent = '로컬 SAPI5 엔진';
         } else if (state.currentEngine === 'elevenlabs') {
             text.textContent = state.apiKeys.elevenlabs === DEFAULT_ELEVENLABS_KEY ? 'ElevenLabs (기본 키)' : 'ElevenLabs (사용자 키)';
             dot.className = `status-dot green`;
             badge.className = `status-badge blue`;
-        } else if (state.currentEngine === 'google-cloud') {
-            text.textContent = state.apiKeys.google ? 'Google Cloud 활성' : '구글 API 키 필요';
-            dot.className = `status-dot ${state.apiKeys.google ? 'green' : 'yellow'}`;
-            badge.className = `status-badge ${state.apiKeys.google ? 'blue' : 'yellow'}`;
         } else if (state.currentEngine === 'gemini') {
-            text.textContent = state.apiKeys.google ? 'Gemini 활성' : '구글 API 키 필요';
+            text.textContent = state.apiKeys.google ? 'Gemini 활성' : 'Gemini 키 필요';
             dot.className = `status-dot ${state.apiKeys.google ? 'green' : 'yellow'}`;
             badge.className = `status-badge ${state.apiKeys.google ? 'purple' : 'yellow'}`;
         } else if (state.currentEngine === 'azure') {
@@ -887,11 +862,7 @@ async function speakText(text) {
     updatePlaybackUI('generating');
 
     // Dynamically adjust CORS attribute based on engine compatibility
-    if (state.currentEngine === 'free-google') {
-        audioPlayer.removeAttribute('crossorigin');
-    } else {
-        audioPlayer.setAttribute('crossorigin', 'anonymous');
-    }
+    audioPlayer.setAttribute('crossorigin', 'anonymous');
     
     const voiceId = selectVoice.value;
     const speed = parseFloat(rangeSpeed.value);
@@ -899,20 +870,16 @@ async function speakText(text) {
     
     // Check if voice ID is empty (especially for system voices error)
     if (!voiceId && state.currentEngine === 'system') {
-        alert('로컬 시스템에 조지아어 음성이 설치되어 있지 않습니다. 설정에서 다른 엔진(Free Google, ElevenLabs)을 이용해 주세요.');
+        alert('로컬 시스템에 조지아어 음성이 설치되어 있지 않습니다. 설정에서 다른 엔진(Gemini, ElevenLabs)을 이용해 주세요.');
         updatePlaybackUI('idle');
         return;
     }
 
     try {
-        if (state.currentEngine === 'free-google') {
-            await playFreeGoogleTTS(text, speed);
+        if (state.currentEngine === 'gemini') {
+            await playGeminiTTS(text, voiceId, speed, pitch);
         } else if (state.currentEngine === 'elevenlabs') {
             await playElevenLabsTTS(text, voiceId, speed);
-        } else if (state.currentEngine === 'google-cloud') {
-            await playGoogleCloudTTS(text, voiceId, speed, pitch);
-        } else if (state.currentEngine === 'gemini') {
-            await playGeminiTTS(text, voiceId, speed, pitch);
         } else if (state.currentEngine === 'azure') {
             await playAzureTTS(text, voiceId, speed, pitch);
         } else if (state.currentEngine === 'system') {
@@ -927,62 +894,7 @@ async function speakText(text) {
     }
 }
 
-// 1. Google Translate TTS (Free Fallback)
-async function playFreeGoogleTTS(text, speed) {
-    // Google Translate TTS limits character length to ~200 chars. We split by punctuation.
-    const segments = splitTextIntoSegments(text, 180);
-    
-    if (segments.length === 0) {
-        throw new Error("텍스트를 구별 가능한 음성 구절로 변환하지 못했습니다.");
-    }
 
-    const urls = segments.map(seg => {
-        return `https://translate.google.com/translate_tts?ie=UTF-8&tl=ka&client=tw-ob&q=${encodeURIComponent(seg)}`;
-    });
-
-    // Populate play queue
-    state.googleQueue = urls;
-    state.googleQueueIndex = 0;
-    
-    // Revoke old URL if any
-    cleanAudioUrls();
-
-    // Google Translate TTS does not generate download blob easily without proxy due to CORS.
-    // However, we can fetch the first chunk directly to check if it's fine, or play directly.
-    // For play, we can just load the audio URL.
-    audioPlayer.src = urls[0];
-    audioPlayer.playbackRate = speed;
-    
-    // Attempt to play
-    audioStatus.textContent = segments.length > 1 ? `재생 중 (1/${segments.length})...` : '재생 중...';
-    await audioPlayer.play();
-}
-
-function splitTextIntoSegments(text, maxLength) {
-    // Split by punctuation (.,!?, ;: \n)
-    const sentences = text.split(/([.,!?;\n]+)/);
-    const segments = [];
-    let currentSegment = "";
-
-    for (let i = 0; i < sentences.length; i++) {
-        const sentence = sentences[i];
-        if (!sentence) continue;
-        
-        if ((currentSegment + sentence).length > maxLength) {
-            if (currentSegment.trim()) {
-                segments.push(currentSegment.trim());
-            }
-            currentSegment = sentence;
-        } else {
-            currentSegment += sentence;
-        }
-    }
-    if (currentSegment.trim()) {
-        segments.push(currentSegment.trim());
-    }
-
-    return segments.filter(s => s.length > 0);
-}
 
 // 2. ElevenLabs TTS
 async function playElevenLabsTTS(text, voiceId, speed) {
@@ -1038,76 +950,7 @@ async function playElevenLabsTTS(text, voiceId, speed) {
     await audioPlayer.play();
 }
 
-// 3. Google Cloud TTS
-async function playGoogleCloudTTS(text, voiceId, speed, pitch) {
-    let response;
-    
-    if (state.isServerActive) {
-        // Use local proxy server (.env key)
-        response = await fetch(`${getServerUrl()}/api/tts/google-cloud`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ text, voiceId, speed, pitch })
-        });
-    } else {
-        // Use client-side direct API
-        const apiKey = state.apiKeys.google;
-        if (!apiKey) {
-            throw new Error("Google Cloud API Key가 설정되지 않았습니다. 상단 우측 톱니바퀴 아이콘을 클릭하여 설정해 주세요.");
-        }
-
-        const semitonePitch = (pitch - 1.0) * 12.0;
-
-        const targetUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-        response = await fetch(`https://corsproxy.io/?` + encodeURIComponent(targetUrl), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                input: { text: text },
-                voice: {
-                    languageCode: 'ka-GE',
-                    name: voiceId
-                },
-                audioConfig: {
-                    audioEncoding: 'MP3',
-                    speakingRate: speed,
-                    pitch: semitonePitch
-                }
-            })
-        });
-    }
-
-    if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        const errMsg = (errJson.error && typeof errJson.error === 'object')
-            ? errJson.error.message
-            : (errJson.error || `HTTP 에러 ${response.status}`);
-        throw new Error(errMsg);
-    }
-
-    let audioBlob;
-    if (state.isServerActive) {
-        audioBlob = await response.blob();
-    } else {
-        const json = await response.json();
-        audioBlob = base64toBlob(json.audioContent, 'audio/mp3');
-    }
-    
-    cleanAudioUrls();
-
-    state.audioBlob = audioBlob;
-    state.audioUrl = URL.createObjectURL(audioBlob);
-    
-    audioPlayer.src = state.audioUrl;
-    audioPlayer.playbackRate = 1.0; // Handled API-side
-    await audioPlayer.play();
-}
-
-// 3.5. Google Gemini TTS
+// 3. Google Gemini TTS
 async function playGeminiTTS(text, voiceId, speed, pitch) {
     let response;
     

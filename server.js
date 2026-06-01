@@ -20,7 +20,6 @@ app.use(express.static(__dirname));
 app.get('/api/config', (req, res) => {
     res.json({
         elevenlabs: !!process.env.ELEVENLABS_API_KEY,
-        google: !!process.env.GOOGLE_API_KEY,
         azure: !!process.env.AZURE_API_KEY,
         gemini: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)
     });
@@ -67,53 +66,7 @@ app.post('/api/tts/elevenlabs', async (req, res) => {
     }
 });
 
-// Proxy route for Google Cloud TTS
-app.post('/api/tts/google-cloud', async (req, res) => {
-    try {
-        const { text, voiceId, speed, pitch } = req.body;
-        const apiKey = process.env.GOOGLE_API_KEY;
 
-        if (!apiKey) {
-            return res.status(400).json({ error: '서버 .env 파일에 Google API Key가 설정되지 않았습니다.' });
-        }
-
-        const semitonePitch = (pitch - 1.0) * 12.0;
-
-        const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                input: { text: text },
-                voice: {
-                    languageCode: 'ka-GE',
-                    name: voiceId
-                },
-                audioConfig: {
-                    audioEncoding: 'MP3',
-                    speakingRate: speed,
-                    pitch: semitonePitch
-                }
-            })
-        });
-
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            const errMsg = err.error?.message || `Google Cloud HTTP ${response.status}`;
-            return res.status(response.status).json({ error: errMsg });
-        }
-
-        const json = await response.json();
-        const buffer = Buffer.from(json.audioContent, 'base64');
-        
-        res.set('Content-Type', 'audio/mpeg');
-        res.send(buffer);
-    } catch (err) {
-        console.error("Google Cloud proxy error:", err);
-        res.status(500).json({ error: err.message });
-    }
-});
 
 // Proxy route for Google Gemini TTS
 app.post('/api/tts/gemini', async (req, res) => {
