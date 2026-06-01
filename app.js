@@ -1027,7 +1027,8 @@ async function playGoogleCloudTTS(text, voiceId, speed, pitch) {
 
         const semitonePitch = (pitch - 1.0) * 12.0;
 
-        response = await fetch(`https://corsproxy.io/?https://texttospeech.googleapis.com/v1/texttospeech:synthesize?key=${apiKey}`, {
+        const targetUrl = `https://texttospeech.googleapis.com/v1/texttospeech:synthesize?key=${apiKey}`;
+        response = await fetch(`https://corsproxy.io/?` + encodeURIComponent(targetUrl), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1103,7 +1104,8 @@ async function playAzureTTS(text, voiceId, speed, pitch) {
             </voice>
         </speak>`;
 
-        response = await fetch(`https://corsproxy.io/?https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        const targetUrl = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
+        response = await fetch(`https://corsproxy.io/?` + encodeURIComponent(targetUrl), {
             method: 'POST',
             headers: {
                 'Ocp-Apim-Subscription-Key': apiKey,
