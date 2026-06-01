@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoVoice - 조지아어 TTS 발음기</title>
+    <!-- Google Fonts: Inter for UI, Noto Serif Georgian for Georgian script -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+Georgian:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background glowing spots -->
+    <div class="glow-bg">
+        <div class="glow-spot glow-1"></div>
+        <div class="glow-spot glow-2"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="logo-icon">🇬🇪</span>
+                <div class="logo-text">
+                    <h1>GeoVoice</h1>
+                    <p>조지아어 실시간 원어민 발음기</p>
+                </div>
+            </div>
+            <div class="header-controls">
+                <div class="status-badge" id="engine-status">
+                    <span class="status-dot green"></span>
+                    <span class="status-text">로딩 중...</span>
+                </div>
+                <button class="icon-btn" id="btn-settings" title="설정 (API 키)">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Panel: Text Input & Playback -->
+            <section class="panel-left">
+                <!-- Text Editor Card -->
+                <div class="glass-card editor-card">
+                    <div class="card-header">
+                        <h2>조지아어 입력</h2>
+                        <div class="editor-actions">
+                            <span class="char-counter" id="char-count">0 / 1000</span>
+                            <button class="text-link-btn" id="btn-clear">지우기</button>
+                            <button class="text-link-btn" id="btn-copy">복사</button>
+                        </div>
+                    </div>
+                    <div class="textarea-wrapper">
+                        <textarea id="tts-input" placeholder="여기에 조지아어 문장 또는 단어를 입력하세요. 오른쪽 단어장이나 알파벳 가이드를 클릭해도 자동으로 입력됩니다.&#10;예: გამარჯობა (안녕하세요)" lang="ka" autocomplete="off" spellcheck="false"></textarea>
+                        
+                        <!-- Floating Keyboard Toggle -->
+                        <button class="keyboard-toggle-btn" id="btn-toggle-keyboard" title="조지아어 가상 키보드">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
+                            가상 키보드
+                        </button>
+                    </div>
+
+                    <!-- Virtual Keyboard Container (Hidden by default) -->
+                    <div class="virtual-keyboard hidden" id="geo-keyboard">
+                        <!-- Key rows will be generated dynamically by JS -->
+                    </div>
+                </div>
+
+                <!-- Voice Controller Card -->
+                <div class="glass-card controls-card">
+                    <h2>음성 설정</h2>
+                    <div class="controls-grid">
+                        <!-- Engine Selection -->
+                        <div class="control-group">
+                            <label for="select-engine">TTS 엔진</label>
+                            <select id="select-engine">
+                                <option value="free-google" selected>무료 기본 (Google Translate TTS)</option>
+                                <option value="elevenlabs">ElevenLabs Neural (초고음질)</option>
+                                <option value="google-cloud">Google Cloud TTS (신경망)</option>
+                                <option value="azure">Microsoft Azure Neural</option>
+                                <option value="system">로컬 시스템 목소리 (Web Speech API)</option>
+                            </select>
+                        </div>
+
+                        <!-- Voice Gender Selection -->
+                        <div class="control-group">
+                            <label for="select-voice">목소리 선택 (성별/이름)</label>
+                            <select id="select-voice">
+                                <!-- Dynamically populated based on chosen engine -->
+                            </select>
+                        </div>
+
+                        <!-- Speed Adjustment -->
+                        <div class="control-group range-control">
+                            <div class="range-labels">
+                                <label for="range-speed">말하기 속도</label>
+                                <span class="range-value" id="val-speed">1.0x</span>
+                            </div>
+                            <input type="range" id="range-speed" min="0.5" max="2.0" step="0.1" value="1.0">
+                        </div>
+
+                        <!-- Pitch Adjustment -->
+                        <div class="control-group range-control">
+                            <div class="range-labels">
+                                <label for="range-pitch">음높이 (Pitch)</label>
+                                <span class="range-value" id="val-pitch">1.0</span>
+                            </div>
+                            <input type="range" id="range-pitch" min="0.5" max="1.5" step="0.1" value="1.0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Playback & Audio Panel -->
+                <div class="glass-card playback-card">
+                    <div class="visualizer-wrapper">
+                        <!-- Real-time dynamic visualizer bars -->
+                        <div class="visualizer" id="wave-visualizer">
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <div class="audio-time-info" id="audio-status">대기 중...</div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="primary-btn pulse" id="btn-play">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            발음 듣기
+                        </button>
+                        <button class="secondary-btn" id="btn-stop" disabled>
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect></svg>
+                            중지
+                        </button>
+                        <button class="secondary-btn" id="btn-download" disabled title="음성 파일 다운로드">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            다운로드 (MP3)
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Guide, Phrasebook & History -->
+            <section class="panel-right">
+                
+                <!-- Tab Headers -->
+                <div class="tab-container">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="tab-phrasebook">회화 단어장</button>
+                        <button class="tab-btn" data-tab="tab-alphabet">알파벳 가이드</button>
+                        <button class="tab-btn" data-tab="tab-history">최근 재생</button>
+                    </div>
+
+                    <!-- Phrasebook Tab Content -->
+                    <div class="tab-content active" id="tab-phrasebook">
+                        <div class="category-selectors">
+                            <button class="cat-btn active" data-cat="greetings">인사</button>
+                            <button class="cat-btn" data-cat="survival">필수 표현</button>
+                            <button class="cat-btn" data-cat="numbers">숫자</button>
+                            <button class="cat-btn" data-cat="dining">음식/쇼핑</button>
+                        </div>
+                        <div class="phrase-list" id="phrase-list-container">
+                            <!-- Phrases will be generated dynamically by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Alphabet Tab Content -->
+                    <div class="tab-content" id="tab-alphabet">
+                        <p class="guide-note">글자를 클릭하면 텍스트 필드에 추가되고 발음을 들을 수 있습니다.</p>
+                        <div class="alphabet-grid" id="alphabet-container">
+                            <!-- Alphabet grid items generated dynamically by JS -->
+                        </div>
+                    </div>
+
+                    <!-- History Tab Content -->
+                    <div class="tab-content" id="tab-history">
+                        <div class="history-header">
+                            <span>저장된 최근 발음 목록</span>
+                            <button class="text-link-btn" id="btn-clear-history">전체 삭제</button>
+                        </div>
+                        <div class="history-list" id="history-container">
+                            <div class="empty-state">최근 재생한 발음 내역이 없습니다.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- API Settings Modal -->
+    <div class="modal-overlay hidden" id="modal-settings">
+        <div class="glass-card modal-card">
+            <div class="modal-header">
+                <h2>API 연결 설정</h2>
+                <button class="close-btn" id="btn-close-settings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-help">고음질의 원어민 목소리를 재생하려면 API 키를 입력하세요. 입력하신 정보는 로컬 브라우저에 안전하게 저장됩니다.</p>
+                
+                <!-- ElevenLabs settings -->
+                <div class="settings-section">
+                    <h3>ElevenLabs 설정</h3>
+                    <div class="form-group">
+                        <label for="input-elevenlabs-key">API Key</label>
+                        <input type="password" id="input-elevenlabs-key" placeholder="ElevenLabs API Key 입력">
+                        <span class="input-hint">구독 중이신 API 키가 자동으로 제공됩니다.</span>
+                    </div>
+                </div>
+
+                <!-- Google Cloud Settings -->
+                <div class="settings-section">
+                    <h3>Google Cloud TTS 설정</h3>
+                    <div class="form-group">
+                        <label for="input-google-key">API Key</label>
+                        <input type="password" id="input-google-key" placeholder="Google Cloud API Key 입력">
+                    </div>
+                </div>
+
+                <!-- Azure Settings -->
+                <div class="settings-section">
+                    <h3>Microsoft Azure Speech 설정</h3>
+                    <div class="form-group">
+                        <label for="input-azure-key">API Key</label>
+                        <input type="password" id="input-azure-key" placeholder="Azure API Key 입력">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-azure-region">서비스 지역 (Region)</label>
+                        <input type="text" id="input-azure-region" placeholder="예: eastus, koreacentral">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn" id="btn-cancel-settings">취소</button>
+                <button class="primary-btn" id="btn-save-settings">설정 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden HTML5 Audio Element for Playback -->
+    <audio id="audio-player" crossorigin="anonymous"></audio>
+
+    <script src="app.js"></script>
+</body>
+</html>
